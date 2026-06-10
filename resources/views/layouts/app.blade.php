@@ -19,7 +19,10 @@
             <a href="{{ route('meters.index') }}" class="text-sm text-gray-700 hover:text-black">Meters</a>
             <a href="{{ route('tokens.index') }}" class="text-sm text-gray-700 hover:text-black">Tokens</a>
         </div>
-        <div class="text-sm text-gray-500">
+        <div class="text-sm text-gray-500 flex items-center gap-4">
+            <a href="#" data-tour-trigger
+               class="text-gray-500 hover:text-black"
+               title="Walk me through the setup steps">Restart tour</a>
             @auth
                 {{ auth()->user()->name }}
                 <form method="POST" action="{{ url('/logout') }}" class="inline ml-2">
