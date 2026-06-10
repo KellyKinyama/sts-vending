@@ -2,6 +2,8 @@
 
 @section('content')
 <div class="max-w-5xl mx-auto p-6 space-y-6">
+    <livewire:dashboard.first-run-banner />
+
     <div>
         <h1 class="text-2xl font-semibold">STS Vending</h1>
         <p class="text-sm text-gray-600">Administer supply groups, vending keys, meters, customers and issue STS tokens.</p>
@@ -27,5 +29,7 @@
     </div>
 
     <livewire:dashboard.engine-status-card />
+
+    @include('partials.api-routes')
 </div>
 @endsection

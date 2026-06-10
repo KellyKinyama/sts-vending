@@ -45,7 +45,10 @@ class DatabaseSeeder extends Seeder
                 'algorithm'            => 'DKGA02',
                 'encryption_algorithm' => 'EA07',
                 'base_date'            => 1993,
-                'vudk_blob'            => 'abababababababab', // 8-byte demo VUDK
+                // Kept in sync with the Dart server's VENDING_KEY_HEX.
+                // `php artisan sts:setup` writes the same value to both
+                // .env files and re-runs this seeder.
+                'vudk_blob'            => strtoupper((string) env('STS_DART_VENDING_KEY', '0123456789ABCDEF')),
                 'is_active'            => true,
             ],
         );
