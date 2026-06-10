@@ -54,12 +54,6 @@ class DartEngineRoundTripTest extends TestCase
 
     protected User $user;
 
-    public static function setUpBeforeClass(): void
-    {
-        parent::setUpBeforeClass();
-        self::bootDartServer();
-    }
-
     public static function tearDownAfterClass(): void
     {
         self::shutdownDartServer();
@@ -68,9 +62,15 @@ class DartEngineRoundTripTest extends TestCase
 
     protected function setUp(): void
     {
-        // Bail BEFORE booting the Laravel app so we don't trip
-        // PHPUnit 12's "did not remove its own error handlers"
-        // risky-test detector on skipped runs.
+        // Boot the Dart subprocess on the first setUp() — by now
+        // Laravel has loaded .env.testing, so STS_INTEGRATION_TESTS
+        // (and friends) are readable via $_ENV. `bootDartServer()`
+        // is idempotent across the rest of the test class.
+        self::bootDartServer();
+
+        // Bail BEFORE booting the Laravel app on subsequent skipped
+        // tests so we don't trip PHPUnit 12's "did not remove its own
+        // error handlers" risky-test detector.
         $this->skipIfDartDown();
 
         parent::setUp();

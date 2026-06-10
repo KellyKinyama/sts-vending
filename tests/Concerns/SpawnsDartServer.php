@@ -40,8 +40,29 @@ trait SpawnsDartServer
 
     protected static ?string $dartSkipReason = null;
 
+    protected static bool $dartBootAttempted = false;
+
+    /**
+     * Lazily boot the Dart subprocess on the first setUp() of the
+     * test class. We can't do this in setUpBeforeClass() because
+     * Laravel's .env isn't loaded until createApplication() runs in
+     * setUp(), so env vars like STS_INTEGRATION_TESTS would not yet
+     * be readable.
+     */
     public static function bootDartServer(): void
     {
+        if (self::$dartBootAttempted) {
+            return;
+        }
+        self::$dartBootAttempted = true;
+
+        // Load .env into $_ENV / $_SERVER ourselves. The test class
+        // calls bootDartServer() *before* parent::setUp() (to satisfy
+        // PHPUnit 12's risky-test detector), so Laravel's own dotenv
+        // loader hasn't run yet. Dotenv is immutable, so when
+        // createApplication() runs later it'll be a no-op for our keys.
+        self::loadDotenvOnce();
+
         if (! self::dartIntegrationEnabled()) {
             self::$dartSkipReason = 'STS_INTEGRATION_TESTS not enabled. '
                 .'Set $env:STS_INTEGRATION_TESTS=1 to run.';
@@ -56,16 +77,16 @@ trait SpawnsDartServer
             return;
         }
 
-        $projectDir = getenv('STS_DART_PROJECT') ?: 'C:\\www\\dart\\nectar_sts_dart';
+        $projectDir = self::envVar('STS_DART_PROJECT') ?: 'C:\\www\\dart\\nectar_sts_dart';
         if (! is_dir($projectDir.DIRECTORY_SEPARATOR.'bin')) {
             self::$dartSkipReason = "Dart project not found at {$projectDir}.";
 
             return;
         }
 
-        $port   = (int) (getenv('STS_DART_PORT') ?: 18787);
-        $bearer = (string) (getenv('STS_DART_BEARER') ?: 'test-bearer');
-        $vudk   = (string) (getenv('STS_DART_VENDING_KEY') ?: '0123456789ABCDEF');
+        $port   = (int) (self::envVar('STS_DART_PORT') ?: 18787);
+        $bearer = (string) (self::envVar('STS_DART_BEARER') ?: 'test-bearer');
+        $vudk   = (string) (self::envVar('STS_DART_VENDING_KEY') ?: '0123456789ABCDEF');
 
         self::$dartBaseUrl = "http://127.0.0.1:{$port}";
         self::$dartBearer  = $bearer;
@@ -153,9 +174,58 @@ trait SpawnsDartServer
 
     private static function dartIntegrationEnabled(): bool
     {
-        $v = getenv('STS_INTEGRATION_TESTS');
+        $v = self::envVar('STS_INTEGRATION_TESTS');
 
         return in_array(strtolower((string) $v), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    /**
+     * Read an env var via the same chain Laravel's env() helper uses,
+     * so values set in .env (which only populates $_ENV and $_SERVER,
+     * not putenv, because Laravel uses immutable Dotenv) are visible
+     * here too.
+     */
+    private static function envVar(string $key): ?string
+    {
+        if (array_key_exists($key, $_ENV)) {
+            return (string) $_ENV[$key];
+        }
+        if (array_key_exists($key, $_SERVER)) {
+            return (string) $_SERVER[$key];
+        }
+        $v = getenv($key);
+
+        return $v === false ? null : $v;
+    }
+
+    /**
+     * Load .env into $_ENV / $_SERVER before parent::setUp() runs.
+     * Idempotent. Falls through to .env.testing first if it exists
+     * (kept as a no-op fallback in case a contributor still has one
+     * around locally).
+     */
+    private static function loadDotenvOnce(): void
+    {
+        static $loaded = false;
+        if ($loaded) {
+            return;
+        }
+        $loaded = true;
+
+        $base = dirname(__DIR__, 2);
+        foreach (['.env.testing', '.env'] as $file) {
+            $path = $base.DIRECTORY_SEPARATOR.$file;
+            if (! is_file($path)) {
+                continue;
+            }
+            $dotenv = \Dotenv\Dotenv::createImmutable($base, $file);
+            try {
+                $dotenv->load();
+            } catch (\Throwable) {
+                // ignore malformed env files; tests will skip with a
+                // clearer reason if STS_INTEGRATION_TESTS ends up unset
+            }
+        }
     }
 
     private static function findDartCli(): ?string

@@ -285,28 +285,38 @@ each:
    subprocess is in JSON-file mode so it does not touch the
    `tokens` table).
 
-Enable with:
+Enable by editing your local `.env` (gitignored, lives alongside
+`artisan`). Add or update the following block:
+
+```dotenv
+STS_INTEGRATION_TESTS=1     # flip to 0 to skip without touching code
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=sts_vending
+DB_USERNAME=root
+DB_PASSWORD=
+
+# Optional knobs for the spawned Dart server (defaults shown):
+STS_DART_PROJECT=C:\www\dart\nectar_sts_dart
+STS_DART_PORT=18787
+STS_DART_BEARER=test-bearer
+STS_DART_VENDING_KEY=0123456789ABCDEF
+```
+
+Then simply:
 
 ```powershell
 cd C:\www\web\laravel\sts-vending
-$env:STS_INTEGRATION_TESTS = '1'
-$env:DB_CONNECTION         = 'mysql'
-$env:DB_HOST               = '127.0.0.1'
-$env:DB_PORT               = '3306'
-$env:DB_DATABASE           = 'sts_vending'
-$env:DB_USERNAME           = 'root'
-$env:DB_PASSWORD           = ''
 ./vendor/bin/phpunit tests/Feature/Api/DartEngineRoundTripTest.php
 ```
 
-Expected: `OK (4 tests, 21 assertions)` in ~8 seconds (one-time
+Expected: `OK (4 tests, 21 assertions)` in ~10 seconds (one-time
 Dart subprocess spawn dominates).
 
-To disable again, just unset `STS_INTEGRATION_TESTS`:
-
-```powershell
-Remove-Item Env:STS_INTEGRATION_TESTS
-```
+To disable again, set `STS_INTEGRATION_TESTS=0` in `.env`. To
+override per-run from the shell, prefix `$env:STS_INTEGRATION_TESTS='0';`
+— shell vars take precedence over the dotenv file.
 
 Optional knobs (any can be left at default):
 

@@ -97,27 +97,16 @@ polls `/healthz`, then drives the full Laravel HTTP routes
 (`POST /api/v1/tokens`, `POST /api/v1/tokens/{tokenNo}/decode`) under
 `Sanctum::actingAs()`.
 
-Skipped by default. Enable with:
+Skipped by default. To enable, flip `STS_INTEGRATION_TESTS=1` in
+your local `.env` and run:
 
 ```powershell
-$env:STS_INTEGRATION_TESTS = '1'
-$env:DB_CONNECTION = 'mysql'
-$env:DB_HOST       = '127.0.0.1'
-$env:DB_PORT       = '3306'
-$env:DB_DATABASE   = 'sts_vending'
-$env:DB_USERNAME   = 'root'
-$env:DB_PASSWORD   = ''
 ./vendor/bin/phpunit tests/Feature/Api/DartEngineRoundTripTest.php
 ```
 
-Tunable env vars (all optional):
-
-| Var | Default | Purpose |
-| --- | --- | --- |
-| `STS_DART_PROJECT` | `C:\www\dart\nectar_sts_dart` | path to the Dart checkout |
-| `STS_DART_PORT` | `18787` | port the spawned server binds |
-| `STS_DART_BEARER` | `test-bearer` | bearer the spawned server requires |
-| `STS_DART_VENDING_KEY` | `0123456789ABCDEF` | 16-hex DES key (must match `VendingKey.vudk_blob`) |
+All required env vars (MySQL connection, Dart project path, port,
+bearer) live in `.env` — no shell-level `$env:` lines needed.
+Override individual values there if your local setup differs.
 
 The spawned server runs in **JSON-file mode** (`STS_DB_HOST` is forced
 empty) so it does not double-write into the Laravel `tokens` table.
