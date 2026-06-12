@@ -1,61 +1,126 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# STS Vending
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel 12 vending front-end and dashboard for the
+[`nectar_sts_dart`](../../dart/nectar_sts_dart) STS prepayment token
+engine. Operators manage supply groups, vending keys, tariffs,
+customers and meters from a Livewire dashboard, then mint 20-digit
+STS tokens that customers key into their prepayment meters.
 
-## About Laravel
+- **Backend** — Laravel 12, PHP 8.3, MySQL 8/9 (sqlite for unit tests)
+- **Front-end** — Livewire 3 + Tailwind dashboard, Vite asset pipeline
+- **Auth** — Sanctum bearer tokens for the API, web sessions for the
+  dashboard
+- **Token engine** — out-of-process Dart HTTP server invoked via
+  [`App\Services\DartTokenEngine`](app/Services/DartTokenEngine.php)
+- **CLI** — `php artisan sts:setup` (one-shot bootstrap),
+  `php artisan sts:smoke` (post-deploy smoke check)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
++----------------+      HTTP (bearer)     +-------------------+
+|  Laravel app   |  ───────────────────►  |  nectar_sts_dart  |
+|  (PHP 8.3)     |  /v1/tokens, /healthz  |  (Dart 3 server)  |
++----------------+                        +-------------------+
+        │                                          │
+        │  Eloquent + MySQL (shared schema)        │
+        └─────────────► +-------------+ ◄──────────┘
+                        |   MySQL 9   |
+                        | sts_vending |
+                        +-------------+
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Quick start
 
-## Contributing
+```powershell
+# 1. Clone, install, set env
+cd C:\www\web\laravel\sts-vending
+composer install
+npm install
+copy .env.example .env
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# 2. Create the database (any MySQL client)
+mysql -uroot -e "CREATE DATABASE sts_vending CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-## Code of Conduct
+# 3. One-shot bootstrap (key:generate + migrate + seed + sync Dart .env)
+php artisan sts:setup
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+# 4. Start the Dart engine in a separate terminal
+cd C:\www\dart\nectar_sts_dart
+dart run bin/server.dart
 
-## Security Vulnerabilities
+# 5. Start Laravel + assets
+cd C:\www\web\laravel\sts-vending
+php artisan serve --host=127.0.0.1 --port=8000
+npm run dev          # optional, only during UI work
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Open `http://127.0.0.1:8000`. Default admin: `admin@local` / `password`.
 
-## License
+Verify the bridge end-to-end:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```powershell
+php artisan sts:smoke
+```
+
+Full walkthrough in [docs/QUICKSTART.md](docs/QUICKSTART.md).
+
+## Documentation
+
+| Doc | What's inside |
+| --- | ------------- |
+| [docs/QUICKSTART.md](docs/QUICKSTART.md) | 5-minute happy-path setup for a new developer machine. |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Production deployment — Windows (NSSM), Linux (systemd), Docker, nginx + TLS, secrets, backup/restore, monitoring, rollback. |
+| [docs/DEPLOYMENT_AND_TESTING.md](docs/DEPLOYMENT_AND_TESTING.md) | Combined dev-setup + test-matrix reference — architecture, configuration knobs, all six test surfaces, troubleshooting table. |
+
+## HTTP API
+
+All endpoints sit under `/api/v1/` and require a Sanctum bearer
+token (`Authorization: Bearer <personal-access-token>`).
+
+| Method | Path                                       | Purpose |
+| ------ | ------------------------------------------ | ------- |
+| GET    | `/api/v1/user`                             | Inspect the authenticated user. |
+| GET    | `/api/v1/supply-groups`                    | List / show / create / update supply groups. |
+| GET    | `/api/v1/vending-keys`                     | Manage vending keys (VUDK metadata). |
+| GET    | `/api/v1/tariffs`                          | Manage tariffs. |
+| GET    | `/api/v1/customers`                        | Manage customers. |
+| GET    | `/api/v1/meters`                           | Manage meters (PAN, IIN/IAIN, vending-key binding). |
+| GET    | `/api/v1/tokens`                           | List issued tokens. |
+| GET    | `/api/v1/tokens/{id}`                      | Show one token. |
+| POST   | `/api/v1/tokens`                           | **Issue** a token. Body: `{meter_id, amount_kwh, random_no?}`. |
+| POST   | `/api/v1/tokens/{tokenNo}/decode`          | **Decode** a 20-digit token back to amount + TID. |
+
+Issuance example:
+
+```powershell
+$body = @{ meter_id = 7; amount_kwh = 12.5 } | ConvertTo-Json
+curl.exe -X POST http://127.0.0.1:8000/api/v1/tokens `
+    -H "Authorization: Bearer $env:STS_API_TOKEN" `
+    -H "Content-Type: application/json" `
+    -H "Accept: application/json" `
+    -d $body
+```
+
+Response (HTTP 201):
+
+```json
+{
+  "token": {
+    "id": 412,
+    "request_id": "req-hjc3ib4fek",
+    "token_no": "12810812506036069849",
+    "meter_id": 7,
+    "vending_key_id": 3,
+    "status": "issued",
+    "amount_kwh": "12.5000",
+    "issued_at": "2026-06-10T05:12:39.011151Z"
+  },
+  "engine": { "status": {...}, "data": {...} }
+}
+```
+
+The 20-digit `token.token_no` is the value the customer keys into the
+meter. See [docs/DEPLOYMENT_AND_TESTING.md §9](docs/DEPLOYMENT_AND_TESTING.md)
+for the full issuance + delivery + reconciliation flow.
 
 ## STS Vending: Dart Engine Integration Testing
 
@@ -113,3 +178,20 @@ empty) so it does not double-write into the Laravel `tokens` table.
 Laravel's own DB writes go through Eloquent and the shared MySQL
 instance. Tests clean up by deleting their throwaway `supply_groups`
 row (`code='987655'`) and the meter rows they created in `tearDown`.
+
+## Security
+
+- API access is Sanctum bearer only. Mint a personal access token via
+  Tinker or the dashboard before issuing requests.
+- Vending keys are encrypted at rest in `vending_keys.vudk_blob`
+  (Laravel `Crypt::encryptString`) and **never** transmitted over the
+  Laravel ↔ Dart bridge — see
+  [docs/DEPLOYMENT_AND_TESTING.md §4.3](docs/DEPLOYMENT_AND_TESTING.md).
+- Report security issues privately to the maintainer; do not file
+  public GitHub issues.
+
+## License
+
+MIT — see [LICENSE](LICENSE) (or the upstream Laravel license if no
+project-specific file is present).
+

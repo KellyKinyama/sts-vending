@@ -4,6 +4,16 @@ This document is the operator-facing reference for deploying and
 testing the STS vending stack on a single Windows host. Linux notes
 are inline where they diverge.
 
+> **Looking for something narrower?**
+>
+> - First-machine setup in 5 minutes → [QUICKSTART.md](QUICKSTART.md)
+> - Production deployment (Windows / Linux / Docker / TLS / backups) →
+>   [DEPLOYMENT.md](DEPLOYMENT.md)
+>
+> This file is the full reference — every configuration knob, every
+> test surface, the complete troubleshooting matrix, and the
+> end-to-end issuance + delivery + reconciliation flow.
+
 ## 1. Architecture at a glance
 
 ```
